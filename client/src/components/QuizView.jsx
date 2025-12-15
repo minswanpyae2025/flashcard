@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { useAuth } from './AuthContext';
+import { useAuth } from '../AuthContext';
+import CanvasText from './CanvasText';
 
 const QuizView = ({ onBack }) => {
   const { token } = useAuth();
@@ -115,7 +116,10 @@ const QuizView = ({ onBack }) => {
             <span>Score: {score}</span>
         </div>
 
-        <h2 className="text-xl font-bold text-gray-800 mb-6">{question.question}</h2>
+        <div className="mb-6">
+            <h2 className="text-xl font-bold text-gray-800 mb-2">Question</h2>
+            <CanvasText text={question.question} className="text-lg text-gray-800" />
+        </div>
 
         <div className="space-y-3">
             {question.options.map((opt, idx) => (

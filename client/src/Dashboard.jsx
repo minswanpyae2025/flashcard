@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
 import axios from 'axios';
-import { useAntiLeak, useBlurOnInactive } from './hooks/useSecurity';
+import { useAntiLeak, useBlurOnInactive, useWatermarkProtection } from './hooks/useSecurity';
 import Watermark from './components/Watermark';
 import QuizCard from './components/QuizCard';
 import QuizView from './components/QuizView';
@@ -16,6 +16,7 @@ const Dashboard = () => {
   // Enable Security Features
   useAntiLeak();
   useBlurOnInactive();
+  useWatermarkProtection('secure-watermark');
 
   useEffect(() => {
     if (token && view === 'flashcards') {

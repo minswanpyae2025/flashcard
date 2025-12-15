@@ -29,7 +29,7 @@ const Watermark = ({ user }) => {
   if (!user) return null;
 
   return (
-    <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+    <div id="secure-watermark" className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
       {positions.map((pos, index) => (
         <div
           key={index}

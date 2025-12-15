@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import CanvasText from './CanvasText';
 
 const QuizCard = ({ card, onReview }) => {
   const [showAnswer, setShowAnswer] = useState(false);
@@ -12,14 +13,14 @@ const QuizCard = ({ card, onReview }) => {
     <div className="max-w-xl mx-auto bg-white rounded-xl shadow-md overflow-hidden p-8 mt-10 relative z-10">
       <div className="mb-8">
         <h2 className="text-xl font-bold text-gray-800 mb-4">Question</h2>
-        <div className="text-lg text-gray-700">{card.question}</div>
+        <CanvasText text={card.question} className="text-lg text-gray-700" />
       </div>
 
       {showAnswer ? (
         <div className="animate-fade-in">
           <div className="mb-8 border-t pt-4">
             <h2 className="text-xl font-bold text-gray-800 mb-4">Answer</h2>
-            <div className="text-lg text-gray-700">{card.answer}</div>
+            <CanvasText text={card.answer} className="text-lg text-gray-700" />
           </div>
 
           <div className="grid grid-cols-4 gap-4 mt-8">
