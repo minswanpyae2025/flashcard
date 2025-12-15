@@ -76,6 +76,29 @@ Attempt.belongsTo(User, { foreignKey: 'user_id' });
 QuizQuestion.hasMany(Attempt, { foreignKey: 'question_id' });
 Attempt.belongsTo(QuizQuestion, { foreignKey: 'question_id' });
 
+const Report = sequelize.define('Report', {
+  user_id: { type: DataTypes.INTEGER, allowNull: false },
+  question_id: { type: DataTypes.INTEGER, allowNull: false },
+  reason: { type: DataTypes.ENUM('Typo', 'Wrong Answer', 'Confusing'), allowNull: false },
+  details: { type: DataTypes.TEXT }
+});
+
+const UserNote = sequelize.define('UserNote', {
+  user_id: { type: DataTypes.INTEGER, allowNull: false },
+  question_id: { type: DataTypes.INTEGER, allowNull: false },
+  note_content: { type: DataTypes.TEXT, allowNull: false }
+});
+
+User.hasMany(Report, { foreignKey: 'user_id' });
+Report.belongsTo(User, { foreignKey: 'user_id' });
+QuizQuestion.hasMany(Report, { foreignKey: 'question_id' });
+Report.belongsTo(QuizQuestion, { foreignKey: 'question_id' });
+
+User.hasMany(UserNote, { foreignKey: 'user_id' });
+UserNote.belongsTo(User, { foreignKey: 'user_id' });
+QuizQuestion.hasMany(UserNote, { foreignKey: 'question_id' });
+UserNote.belongsTo(QuizQuestion, { foreignKey: 'question_id' });
+
 
 // SRS Review Model
 const Review = sequelize.define('Review', {
@@ -325,6 +348,95 @@ app.get('/quiz/questions', authenticateToken, async (req, res) => {
         });
         res.json(questions);
     } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/quiz/report', authenticateToken, async (req, res) => {
+    try {
+        const { questionId, reason, details } = req.body;
+        await Report.create({
+            user_id: req.user.id,
+            question_id: questionId,
+            reason,
+            details
+        });
+        res.status(201).json({ message: 'Report submitted' });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+app.get('/quiz/note/:questionId', authenticateToken, async (req, res) => {
+    try {
+        const note = await UserNote.findOne({
+            where: {
+                user_id: req.user.id,
+                question_id: req.params.questionId
+            }
+        });
+        res.json(note || { note_content: '' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/quiz/note', authenticateToken, async (req, res) => {
+    try {
+        const { questionId, noteContent } = req.body;
+        const [note, created] = await UserNote.findOrCreate({
+            where: { user_id: req.user.id, question_id: questionId },
+            defaults: { note_content: noteContent }
+        });
+
+        if (!created) {
+            note.note_content = noteContent;
+            await note.save();
+        }
+
+        res.json({ message: 'Note saved' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/stats', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        const totalAttempts = await Attempt.count({ where: { user_id: userId } });
+
+        // Calculate accuracy by category (Module)
+        // We need to join Attempt with QuizQuestion to get module
+        const attempts = await Attempt.findAll({
+            where: { user_id: userId },
+            include: [QuizQuestion]
+        });
+
+        const stats = {};
+
+        attempts.forEach(attempt => {
+            const module = attempt.QuizQuestion ? attempt.QuizQuestion.module : 'Unknown';
+            if (!stats[module]) {
+                stats[module] = { total: 0, correct: 0 };
+            }
+            stats[module].total++;
+            if (attempt.is_correct) stats[module].correct++;
+        });
+
+        const formattedStats = Object.keys(stats).map(module => ({
+            module,
+            total: stats[module].total,
+            correct: stats[module].correct,
+            accuracy: Math.round((stats[module].correct / stats[module].total) * 100)
+        }));
+
+        res.json({
+            totalAttempts,
+            byModule: formattedStats
+        });
+    } catch (error) {
+        console.error(error);
         res.status(500).json({ error: error.message });
     }
 });

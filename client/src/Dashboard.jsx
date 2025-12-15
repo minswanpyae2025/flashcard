@@ -5,10 +5,11 @@ import { useAntiLeak, useBlurOnInactive, useWatermarkProtection } from './hooks/
 import Watermark from './components/Watermark';
 import QuizCard from './components/QuizCard';
 import QuizView from './components/QuizView';
+import StatsView from './components/StatsView';
 
 const Dashboard = () => {
   const { user, token } = useAuth();
-  const [view, setView] = useState('flashcards'); // flashcards, quiz
+  const [view, setView] = useState('flashcards'); // flashcards, quiz, stats
   const [dueCards, setDueCards] = useState([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -80,10 +81,18 @@ const Dashboard = () => {
             >
                 Quizzes / Exams
             </button>
+            <button
+                onClick={() => setView('stats')}
+                className={`px-4 py-2 rounded ${view === 'stats' ? 'bg-indigo-600 text-white' : 'bg-gray-200'}`}
+            >
+                Stats
+            </button>
         </div>
       </div>
 
-      {view === 'quiz' ? (
+      {view === 'stats' ? (
+          <StatsView onBack={() => setView('flashcards')} />
+      ) : view === 'quiz' ? (
           <QuizView onBack={() => setView('flashcards')} />
       ) : (
           <>
