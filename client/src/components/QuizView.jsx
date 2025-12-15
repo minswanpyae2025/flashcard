@@ -203,26 +203,6 @@ const QuizView = ({ onBack }) => {
             <div className="mt-6 p-4 bg-gray-100 rounded border border-gray-200">
                 <h3 className="font-bold mb-2">{feedback.isCorrect ? 'Correct!' : 'Incorrect'}</h3>
                 <p>{feedback.explanation}</p>
-
-                <div className="mt-6 border-t pt-4">
-                    <h4 className="font-bold text-gray-700 mb-2">Personal Notes</h4>
-                    <textarea
-                        className="w-full border rounded p-2 text-sm"
-                        rows="3"
-                        placeholder="Add your notes here..."
-                        value={noteContent}
-                        onChange={(e) => setNoteContent(e.target.value)}
-                    ></textarea>
-                    <div className="flex justify-between items-center mt-2">
-                        <button
-                            onClick={saveNote}
-                            className="bg-gray-600 hover:bg-gray-700 text-white text-xs py-1 px-3 rounded"
-                        >
-                            Save Note
-                        </button>
-                        {noteStatus && <span className="text-green-600 text-xs">{noteStatus}</span>}
-                    </div>
-                </div>
             </div>
         )}
 

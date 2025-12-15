@@ -3,7 +3,11 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './AuthContext';
 import Login from './Login';
 import Dashboard from './Dashboard';
-import AdminDashboard from './components/AdminDashboard';
+import AdminLayout from './components/admin/AdminLayout';
+import AdminHome from './components/admin/AdminHome';
+import TaxonomyManager from './components/admin/TaxonomyManager';
+import ContentManager from './components/admin/ContentManager';
+import ReportInbox from './components/admin/ReportInbox';
 
 const ProtectedRoute = ({ children }) => {
   const { token } = useAuth();
@@ -31,11 +35,10 @@ function App() {
               <Dashboard />
             </ProtectedRoute>
           } />
-          <Route path="/admin" element={
-            <AdminRoute>
-                <AdminDashboard onBack={() => window.location.href='/dashboard'} />
-            </AdminRoute>
-          } />
+          <Route path="/admin" element={<AdminRoute><AdminLayout><AdminHome /></AdminLayout></AdminRoute>} />
+          <Route path="/admin/content" element={<AdminRoute><AdminLayout><ContentManager /></AdminLayout></AdminRoute>} />
+          <Route path="/admin/taxonomy" element={<AdminRoute><AdminLayout><TaxonomyManager /></AdminLayout></AdminRoute>} />
+          <Route path="/admin/reports" element={<AdminRoute><AdminLayout><ReportInbox /></AdminLayout></AdminRoute>} />
           <Route path="/" element={<Navigate to="/dashboard" />} />
         </Routes>
       </Router>

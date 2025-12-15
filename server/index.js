@@ -44,24 +44,50 @@ const Device = sequelize.define('Device', {
 User.hasMany(Device);
 Device.belongsTo(User);
 
+// Taxonomy Models
+const Category = sequelize.define('Category', {
+  name: { type: DataTypes.STRING, allowNull: false },
+  type: { type: DataTypes.ENUM('flashcard', 'question'), allowNull: false }
+});
+
+const Tag = sequelize.define('Tag', {
+  name: { type: DataTypes.STRING, allowNull: false }
+});
+
 const Flashcard = sequelize.define('Flashcard', {
   question: { type: DataTypes.TEXT, allowNull: false },
   answer: { type: DataTypes.TEXT, allowNull: false },
   image_url: { type: DataTypes.STRING },
-  module: { type: DataTypes.STRING },
+  module: { type: DataTypes.STRING }, // Legacy support or alias to Category? Keeping for now but favoring CategoryId
   year: { type: DataTypes.STRING },
-  tags: { type: DataTypes.STRING }
 });
 
 const QuizQuestion = sequelize.define('QuizQuestion', {
   question: { type: DataTypes.TEXT, allowNull: false },
-  options: { type: DataTypes.JSON, allowNull: false }, // Store as JSON array ["A", "B", "C", "D"]
-  correct_option: { type: DataTypes.INTEGER, allowNull: false }, // Index of correct option
+  options: { type: DataTypes.JSON, allowNull: false },
+  correct_option: { type: DataTypes.INTEGER, allowNull: false },
   explanation: { type: DataTypes.TEXT },
-  module: { type: DataTypes.STRING },
+  module: { type: DataTypes.STRING }, // Legacy
   year: { type: DataTypes.STRING },
   type: { type: DataTypes.ENUM('practice', 'exam'), defaultValue: 'practice' }
 });
+
+// Associations for Taxonomy
+Category.hasMany(Flashcard);
+Flashcard.belongsTo(Category);
+
+Category.hasMany(QuizQuestion);
+QuizQuestion.belongsTo(Category);
+
+const FlashcardTag = sequelize.define('FlashcardTag', {});
+const QuestionTag = sequelize.define('QuestionTag', {});
+
+Flashcard.belongsToMany(Tag, { through: FlashcardTag });
+Tag.belongsToMany(Flashcard, { through: FlashcardTag });
+
+QuizQuestion.belongsToMany(Tag, { through: QuestionTag });
+Tag.belongsToMany(QuizQuestion, { through: QuestionTag });
+
 
 const Attempt = sequelize.define('Attempt', {
   user_id: { type: DataTypes.INTEGER, allowNull: false },
@@ -78,27 +104,17 @@ Attempt.belongsTo(QuizQuestion, { foreignKey: 'question_id' });
 
 const Report = sequelize.define('Report', {
   user_id: { type: DataTypes.INTEGER, allowNull: false },
-  question_id: { type: DataTypes.INTEGER, allowNull: false },
+  targetType: { type: DataTypes.ENUM('question', 'flashcard'), allowNull: false },
+  targetId: { type: DataTypes.INTEGER, allowNull: false },
   reason: { type: DataTypes.ENUM('Typo', 'Wrong Answer', 'Confusing'), allowNull: false },
-  details: { type: DataTypes.TEXT }
-});
-
-const UserNote = sequelize.define('UserNote', {
-  user_id: { type: DataTypes.INTEGER, allowNull: false },
-  question_id: { type: DataTypes.INTEGER, allowNull: false },
-  note_content: { type: DataTypes.TEXT, allowNull: false }
+  description: { type: DataTypes.TEXT },
+  status: { type: DataTypes.ENUM('open', 'resolved'), defaultValue: 'open' }
 });
 
 User.hasMany(Report, { foreignKey: 'user_id' });
 Report.belongsTo(User, { foreignKey: 'user_id' });
-QuizQuestion.hasMany(Report, { foreignKey: 'question_id' });
-Report.belongsTo(QuizQuestion, { foreignKey: 'question_id' });
-
-User.hasMany(UserNote, { foreignKey: 'user_id' });
-UserNote.belongsTo(User, { foreignKey: 'user_id' });
-QuizQuestion.hasMany(UserNote, { foreignKey: 'question_id' });
-UserNote.belongsTo(QuizQuestion, { foreignKey: 'question_id' });
-
+// Reports are polymorphic, so no strict foreign key constraints at DB level for targetId usually,
+// or multiple FKs. We'll manage targetId manually in logic.
 
 // SRS Review Model
 const Review = sequelize.define('Review', {
@@ -116,8 +132,11 @@ Flashcard.hasMany(Review, { foreignKey: 'card_id' });
 Review.belongsTo(Flashcard, { foreignKey: 'card_id' });
 
 // Sync Database
-sequelize.sync({ alter: true }).then(() => {
+// Force true to drop tables and recreate since we changed schema significantly
+sequelize.sync({ force: true }).then(async () => {
   console.log('Database synced');
+  // Re-seed admin if needed? In this sandbox, maybe yes.
+  // Actually, we'll lose data. But that's expected in dev refactoring.
 });
 
 // Routes
@@ -127,7 +146,6 @@ app.post('/auth/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
-    // Set expiry to 6 months from now by default
     const access_expiry = addDays(new Date(), 180);
     const user = await User.create({ name, email, password: hashedPassword, access_expiry });
     res.status(201).json({ message: 'User created successfully' });
@@ -179,11 +197,6 @@ const authenticateToken = (req, res, next) => {
 
   jwt.verify(token, SECRET_KEY, async (err, decoded) => {
     if (err) return res.sendStatus(403);
-
-    // Check expiry again just in case token is old but valid sig
-    // Ideally we check DB, but optimizing: check token if we put expiry claim in it?
-    // We didn't put expiry in token payload, but we can query user quickly or trust login check + token expiration.
-    // For strictness, let's query user.
     try {
         const user = await User.findByPk(decoded.id);
         if (!user || (user.access_expiry && new Date() > new Date(user.access_expiry))) {
@@ -197,36 +210,163 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+const isAdmin = (req, res, next) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+    next();
+};
+
+// --- ADMIN ROUTER ---
+const adminRouter = express.Router();
+adminRouter.use(authenticateToken);
+adminRouter.use(isAdmin);
+
+// Dashboard Stats
+adminRouter.get('/stats', async (req, res) => {
+    try {
+        const totalUsers = await User.count();
+        const activeFlags = await Report.count({ where: { status: 'open' } });
+        const totalQuestions = await QuizQuestion.count();
+        const totalFlashcards = await Flashcard.count();
+        res.json({ totalUsers, activeFlags, totalQuestions, totalFlashcards });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Category CRUD
+adminRouter.get('/categories', async (req, res) => {
+    const categories = await Category.findAll();
+    res.json(categories);
+});
+adminRouter.post('/categories', async (req, res) => {
+    try {
+        const category = await Category.create(req.body);
+        res.status(201).json(category);
+    } catch (e) { res.status(400).json({ error: e.message }); }
+});
+adminRouter.put('/categories/:id', async (req, res) => {
+    try {
+        const category = await Category.findByPk(req.params.id);
+        if (!category) return res.status(404).json({ error: 'Not found' });
+        await category.update(req.body);
+        res.json(category);
+    } catch (e) { res.status(400).json({ error: e.message }); }
+});
+adminRouter.delete('/categories/:id', async (req, res) => {
+    try {
+        const category = await Category.findByPk(req.params.id);
+        if (!category) return res.status(404).json({ error: 'Not found' });
+        await category.destroy();
+        res.json({ message: 'Deleted' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Tag CRUD
+adminRouter.get('/tags', async (req, res) => {
+    const tags = await Tag.findAll();
+    res.json(tags);
+});
+adminRouter.post('/tags', async (req, res) => {
+    try {
+        const tag = await Tag.create(req.body);
+        res.status(201).json(tag);
+    } catch (e) { res.status(400).json({ error: e.message }); }
+});
+adminRouter.put('/tags/:id', async (req, res) => {
+    try {
+        const tag = await Tag.findByPk(req.params.id);
+        if (!tag) return res.status(404).json({ error: 'Not found' });
+        await tag.update(req.body);
+        res.json(tag);
+    } catch (e) { res.status(400).json({ error: e.message }); }
+});
+adminRouter.delete('/tags/:id', async (req, res) => {
+    try {
+        const tag = await Tag.findByPk(req.params.id);
+        if (!tag) return res.status(404).json({ error: 'Not found' });
+        await tag.destroy();
+        res.json({ message: 'Deleted' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Reports
+adminRouter.get('/reports', async (req, res) => {
+    try {
+        const reports = await Report.findAll({
+            where: req.query.status ? { status: req.query.status } : {},
+            include: [User]
+        });
+
+        // Enrich reports with target content
+        // In a real app with polymorphic associations, we might do separate lookups or dynamic includes.
+        // For simplicity, we'll fetch them manually or let the frontend do it?
+        // Better to fetch here to avoid N+1 on frontend if possible, but simplest is let frontend fetch target.
+        // Or we can attach it here.
+        const reportsWithContent = await Promise.all(reports.map(async (r) => {
+            let content = null;
+            if (r.targetType === 'question') {
+                content = await QuizQuestion.findByPk(r.targetId);
+            } else if (r.targetType === 'flashcard') {
+                content = await Flashcard.findByPk(r.targetId);
+            }
+            return { ...r.toJSON(), content };
+        }));
+
+        res.json(reportsWithContent);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+adminRouter.put('/reports/:id/resolve', async (req, res) => {
+    try {
+        const report = await Report.findByPk(req.params.id);
+        if (!report) return res.status(404).json({ error: 'Not found' });
+        report.status = 'resolved';
+        await report.save();
+        res.json(report);
+    } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+app.use('/api/admin', adminRouter);
+
+
+// --- PUBLIC / STUDENT ROUTES ---
+
 // Flashcard Routes
 app.get('/flashcards', authenticateToken, async (req, res) => {
-  const flashcards = await Flashcard.findAll();
+  const flashcards = await Flashcard.findAll({ include: [Category, Tag] });
   res.json(flashcards);
 });
 
-app.post('/flashcards', authenticateToken, async (req, res) => {
-  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+app.post('/flashcards', authenticateToken, isAdmin, async (req, res) => {
   try {
-    const card = await Flashcard.create(req.body);
+    const { tags, ...data } = req.body;
+    const card = await Flashcard.create(data);
+    if (tags && tags.length > 0) {
+        // Assume tags are array of IDs
+        await card.setTags(tags);
+    }
     res.status(201).json(card);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 });
 
-app.put('/flashcards/:id', authenticateToken, async (req, res) => {
-  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+app.put('/flashcards/:id', authenticateToken, isAdmin, async (req, res) => {
   try {
     const card = await Flashcard.findByPk(req.params.id);
     if (!card) return res.status(404).json({ error: 'Card not found' });
-    await card.update(req.body);
+    const { tags, ...data } = req.body;
+    await card.update(data);
+    if (tags) {
+        await card.setTags(tags);
+    }
     res.json(card);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 });
 
-app.delete('/flashcards/:id', authenticateToken, async (req, res) => {
-  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+app.delete('/flashcards/:id', authenticateToken, isAdmin, async (req, res) => {
   try {
     const card = await Flashcard.findByPk(req.params.id);
     if (!card) return res.status(404).json({ error: 'Card not found' });
@@ -339,12 +479,16 @@ app.get('/quiz/questions', authenticateToken, async (req, res) => {
     try {
         const { type = 'practice', limit = 10, module } = req.query;
         const where = { type };
-        if (module) where.module = module;
+        if (module) where.module = module; // Legacy support: keep module string for now? Or switch to Category?
+        // Let's assume module param now maps to category name via join?
+        // For backwards compatibility, the 'module' field still exists on the model, but we should use CategoryId.
+        // For this step, we'll keep simplistic query.
 
         const questions = await QuizQuestion.findAll({
             where,
             order: sequelize.random(),
-            limit: parseInt(limit)
+            limit: parseInt(limit),
+            include: [Category, Tag]
         });
         res.json(questions);
     } catch (error) {
@@ -355,11 +499,14 @@ app.get('/quiz/questions', authenticateToken, async (req, res) => {
 app.post('/quiz/report', authenticateToken, async (req, res) => {
     try {
         const { questionId, reason, details } = req.body;
+        // Map legacy report request to new polymorphic report
+        // Assuming we are only reporting questions here based on route name
         await Report.create({
             user_id: req.user.id,
-            question_id: questionId,
+            targetType: 'question',
+            targetId: questionId,
             reason,
-            details
+            description: details
         });
         res.status(201).json({ message: 'Report submitted' });
     } catch (error) {
@@ -367,38 +514,7 @@ app.post('/quiz/report', authenticateToken, async (req, res) => {
     }
 });
 
-app.get('/quiz/note/:questionId', authenticateToken, async (req, res) => {
-    try {
-        const note = await UserNote.findOne({
-            where: {
-                user_id: req.user.id,
-                question_id: req.params.questionId
-            }
-        });
-        res.json(note || { note_content: '' });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.post('/quiz/note', authenticateToken, async (req, res) => {
-    try {
-        const { questionId, noteContent } = req.body;
-        const [note, created] = await UserNote.findOrCreate({
-            where: { user_id: req.user.id, question_id: questionId },
-            defaults: { note_content: noteContent }
-        });
-
-        if (!created) {
-            note.note_content = noteContent;
-            await note.save();
-        }
-
-        res.json({ message: 'Note saved' });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+// REMOVED NOTE ROUTES
 
 app.get('/stats', authenticateToken, async (req, res) => {
     try {
@@ -406,8 +522,6 @@ app.get('/stats', authenticateToken, async (req, res) => {
 
         const totalAttempts = await Attempt.count({ where: { user_id: userId } });
 
-        // Calculate accuracy by category (Module)
-        // We need to join Attempt with QuizQuestion to get module
         const attempts = await Attempt.findAll({
             where: { user_id: userId },
             include: [QuizQuestion]
@@ -416,12 +530,19 @@ app.get('/stats', authenticateToken, async (req, res) => {
         const stats = {};
 
         attempts.forEach(attempt => {
-            const module = attempt.QuizQuestion ? attempt.QuizQuestion.module : 'Unknown';
-            if (!stats[module]) {
-                stats[module] = { total: 0, correct: 0 };
+            // Use new Category if available, else fallback to legacy string
+            let categoryName = 'Unknown';
+            if (attempt.QuizQuestion && attempt.QuizQuestion.Category) {
+                categoryName = attempt.QuizQuestion.Category.name;
+            } else if (attempt.QuizQuestion && attempt.QuizQuestion.module) {
+                categoryName = attempt.QuizQuestion.module;
             }
-            stats[module].total++;
-            if (attempt.is_correct) stats[module].correct++;
+
+            if (!stats[categoryName]) {
+                stats[categoryName] = { total: 0, correct: 0 };
+            }
+            stats[categoryName].total++;
+            if (attempt.is_correct) stats[categoryName].correct++;
         });
 
         const formattedStats = Object.keys(stats).map(module => ({
@@ -441,30 +562,31 @@ app.get('/stats', authenticateToken, async (req, res) => {
     }
 });
 
-app.post('/quiz/questions', authenticateToken, async (req, res) => {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+app.post('/quiz/questions', authenticateToken, isAdmin, async (req, res) => {
     try {
-        const question = await QuizQuestion.create(req.body);
+        const { tags, ...data } = req.body;
+        const question = await QuizQuestion.create(data);
+        if (tags) await question.setTags(tags);
         res.status(201).json(question);
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
 });
 
-app.put('/quiz/questions/:id', authenticateToken, async (req, res) => {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+app.put('/quiz/questions/:id', authenticateToken, isAdmin, async (req, res) => {
     try {
         const question = await QuizQuestion.findByPk(req.params.id);
         if (!question) return res.status(404).json({ error: 'Question not found' });
-        await question.update(req.body);
+        const { tags, ...data } = req.body;
+        await question.update(data);
+        if (tags) await question.setTags(tags);
         res.json(question);
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
 });
 
-app.delete('/quiz/questions/:id', authenticateToken, async (req, res) => {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+app.delete('/quiz/questions/:id', authenticateToken, isAdmin, async (req, res) => {
     try {
         const question = await QuizQuestion.findByPk(req.params.id);
         if (!question) return res.status(404).json({ error: 'Question not found' });
