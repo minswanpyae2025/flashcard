@@ -7,6 +7,7 @@ import QuizCard from './components/QuizCard';
 import QuizView from './components/QuizView';
 import StatsView from './components/StatsView';
 import API_URL from './config';
+import Logo from './components/Logo';
 
 const Dashboard = () => {
   const { user, token } = useAuth();
@@ -64,6 +65,9 @@ const Dashboard = () => {
 
       <div className="flex justify-between items-center mb-6">
         <div>
+            <div className="flex items-center space-x-4 mb-2">
+                <Logo className="text-indigo-800" />
+            </div>
             <h1 className="text-3xl font-bold">Welcome, {user?.name}</h1>
             {user?.role === 'admin' && (
                 <a href="/admin" className="text-blue-600 hover:underline text-sm">Go to Admin Dashboard</a>

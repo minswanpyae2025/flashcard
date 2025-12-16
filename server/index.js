@@ -119,6 +119,11 @@ Attempt.belongsTo(User, { foreignKey: 'user_id' });
 QuizQuestion.hasMany(Attempt, { foreignKey: 'question_id' });
 Attempt.belongsTo(QuizQuestion, { foreignKey: 'question_id' });
 
+// User Category Access
+const UserCategory = sequelize.define('UserCategory', {});
+User.belongsToMany(Category, { through: UserCategory });
+Category.belongsToMany(User, { through: UserCategory });
+
 const Report = sequelize.define('Report', {
   user_id: { type: DataTypes.INTEGER, allowNull: false },
   targetType: { type: DataTypes.ENUM('question', 'flashcard'), allowNull: false },
@@ -236,6 +241,26 @@ const adminRouter = express.Router();
 adminRouter.use(authenticateToken);
 adminRouter.use(isAdmin);
 
+// User Management
+adminRouter.get('/users', async (req, res) => {
+    const users = await User.findAll({
+        attributes: ['id', 'name', 'email', 'role', 'access_expiry'],
+        include: [Category]
+    });
+    res.json(users);
+});
+
+adminRouter.post('/users/:id/access', async (req, res) => {
+    try {
+        const user = await User.findByPk(req.params.id);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        const { categoryIds } = req.body; // Array of IDs
+        await user.setCategories(categoryIds);
+        res.json({ message: 'Access updated' });
+    } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
 // Dashboard Stats
 adminRouter.get('/stats', async (req, res) => {
     try {
@@ -349,7 +374,21 @@ app.use('/api/admin', adminRouter);
 
 // Flashcard Routes
 app.get('/flashcards', authenticateToken, async (req, res) => {
-  const flashcards = await Flashcard.findAll({ include: [Category, Tag] });
+  // Access Control
+  let where = {};
+  if (req.user.role !== 'admin') {
+      const user = await User.findByPk(req.user.id, { include: Category });
+      const allowedCategoryIds = user.Categories ? user.Categories.map(c => c.id) : [];
+      if (allowedCategoryIds.length === 0) {
+          return res.json([]); // No access
+      }
+      where.CategoryId = allowedCategoryIds;
+  }
+
+  const flashcards = await Flashcard.findAll({
+      where,
+      include: [Category, Tag]
+  });
   res.json(flashcards);
 });
 
@@ -413,9 +452,19 @@ app.get('/reviews/due', authenticateToken, async (req, res) => {
     const reviewedCardIds = await Review.findAll({ where: { user_id: userId }, attributes: ['card_id'] });
     const reviewedIds = reviewedCardIds.map(r => r.card_id);
 
+    // Filter new cards by access
+    let accessWhere = {};
+    if (req.user.role !== 'admin') {
+        const user = await User.findByPk(userId, { include: Category });
+        const allowedIds = user.Categories ? user.Categories.map(c => c.id) : [];
+        if (allowedIds.length === 0) return res.json([...reviews.map(r => ({ ...r.Flashcard.toJSON(), reviewId: r.id, type: 'review' }))]);
+        accessWhere.CategoryId = allowedIds;
+    }
+
     const newCards = await Flashcard.findAll({
       where: {
-        id: { [Sequelize.Op.notIn]: reviewedIds }
+        id: { [Sequelize.Op.notIn]: reviewedIds },
+        ...accessWhere
       },
       limit: 20
     });
@@ -495,10 +544,16 @@ app.get('/quiz/questions', authenticateToken, async (req, res) => {
     try {
         const { type = 'practice', limit = 10, module } = req.query;
         const where = { type };
-        if (module) where.module = module; // Legacy support: keep module string for now? Or switch to Category?
-        // Let's assume module param now maps to category name via join?
-        // For backwards compatibility, the 'module' field still exists on the model, but we should use CategoryId.
-        // For this step, we'll keep simplistic query.
+        if (module) where.module = module;
+
+        // Access Control
+        if (req.user.role !== 'admin') {
+            const user = await User.findByPk(req.user.id, { include: Category });
+            const allowedCategoryIds = user.Categories ? user.Categories.map(c => c.id) : [];
+            if (allowedCategoryIds.length === 0) return res.json([]);
+
+            where.CategoryId = allowedCategoryIds;
+        }
 
         const questions = await QuizQuestion.findAll({
             where,

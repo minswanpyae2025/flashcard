@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../AuthContext';
+import Logo from '../Logo';
 
 const AdminLayout = ({ children }) => {
   const { logout } = useAuth();
@@ -12,6 +13,7 @@ const AdminLayout = ({ children }) => {
     { label: 'Content Manager', path: '/admin/content' },
     { label: 'Taxonomy', path: '/admin/taxonomy' },
     { label: 'Report Inbox', path: '/admin/reports' },
+    { label: 'User Access', path: '/admin/users' },
   ];
 
   return (
@@ -19,7 +21,8 @@ const AdminLayout = ({ children }) => {
       {/* Sidebar */}
       <aside className="w-64 bg-indigo-800 text-white flex-shrink-0">
         <div className="p-6">
-          <h1 className="text-2xl font-bold">Admin Panel</h1>
+          <Logo className="text-white" />
+          <div className="text-xs text-indigo-300 mt-2">Admin Panel</div>
         </div>
         <nav className="mt-6">
           {menuItems.map(item => (

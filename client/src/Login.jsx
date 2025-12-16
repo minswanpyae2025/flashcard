@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from './AuthContext';
 import { useNavigate } from 'react-router-dom';
+import Logo from './components/Logo';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -22,7 +23,10 @@ const Login = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="bg-white p-8 rounded shadow-md w-96">
-        <h2 className="text-2xl font-bold mb-4">Login</h2>
+        <div className="mb-6 flex justify-center">
+            <Logo className="text-indigo-800" />
+        </div>
+        <h2 className="text-2xl font-bold mb-4 text-center">Student Login</h2>
         {error && <p className="text-red-500 mb-4">{error}</p>}
         <form onSubmit={handleSubmit}>
           <div className="mb-4">

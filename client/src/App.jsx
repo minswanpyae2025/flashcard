@@ -8,6 +8,7 @@ import AdminHome from './components/admin/AdminHome';
 import TaxonomyManager from './components/admin/TaxonomyManager';
 import ContentManager from './components/admin/ContentManager';
 import ReportInbox from './components/admin/ReportInbox';
+import UserAccessManager from './components/admin/UserAccessManager';
 
 const ProtectedRoute = ({ children }) => {
   const { token } = useAuth();
@@ -39,6 +40,7 @@ function App() {
           <Route path="/admin/content" element={<AdminRoute><AdminLayout><ContentManager /></AdminLayout></AdminRoute>} />
           <Route path="/admin/taxonomy" element={<AdminRoute><AdminLayout><TaxonomyManager /></AdminLayout></AdminRoute>} />
           <Route path="/admin/reports" element={<AdminRoute><AdminLayout><ReportInbox /></AdminLayout></AdminRoute>} />
+          <Route path="/admin/users" element={<AdminRoute><AdminLayout><UserAccessManager /></AdminLayout></AdminRoute>} />
           <Route path="/" element={<Navigate to="/dashboard" />} />
         </Routes>
       </Router>
