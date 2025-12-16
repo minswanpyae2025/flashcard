@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../AuthContext';
+import API_URL from '../../config';
 
 const TaxonomyManager = () => {
   const { token } = useAuth();
@@ -16,12 +17,12 @@ const TaxonomyManager = () => {
 
   const fetchData = () => {
     const headers = { Authorization: `Bearer ${token}` };
-    axios.get('http://localhost:3000/api/admin/categories', { headers }).then(res => setCategories(res.data));
-    axios.get('http://localhost:3000/api/admin/tags', { headers }).then(res => setTags(res.data));
+    axios.get(`${API_URL}/api/admin/categories`, { headers }).then(res => setCategories(res.data));
+    axios.get(`${API_URL}/api/admin/tags`, { headers }).then(res => setTags(res.data));
   };
 
   const addCategory = () => {
-      axios.post('http://localhost:3000/api/admin/categories', { name: newCatName, type: newCatType }, {
+      axios.post(`${API_URL}/api/admin/categories`, { name: newCatName, type: newCatType }, {
           headers: { Authorization: `Bearer ${token}` }
       }).then(() => {
           setNewCatName('');
@@ -31,13 +32,13 @@ const TaxonomyManager = () => {
 
   const deleteCategory = (id) => {
       if(!confirm('Delete category?')) return;
-      axios.delete(`http://localhost:3000/api/admin/categories/${id}`, {
+      axios.delete(`${API_URL}/api/admin/categories/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
       }).then(fetchData);
   };
 
   const addTag = () => {
-      axios.post('http://localhost:3000/api/admin/tags', { name: newTagName }, {
+      axios.post(`${API_URL}/api/admin/tags`, { name: newTagName }, {
           headers: { Authorization: `Bearer ${token}` }
       }).then(() => {
           setNewTagName('');
@@ -47,7 +48,7 @@ const TaxonomyManager = () => {
 
   const deleteTag = (id) => {
       if(!confirm('Delete tag?')) return;
-      axios.delete(`http://localhost:3000/api/admin/tags/${id}`, {
+      axios.delete(`${API_URL}/api/admin/tags/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
       }).then(fetchData);
   };

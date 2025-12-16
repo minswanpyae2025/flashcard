@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../AuthContext';
+import API_URL from '../config';
 
 const StatsView = ({ onBack }) => {
   const { token } = useAuth();
@@ -8,7 +9,7 @@ const StatsView = ({ onBack }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    axios.get('http://localhost:3000/stats', {
+    axios.get(`${API_URL}/stats`, {
         headers: { Authorization: `Bearer ${token}` }
     })
     .then(res => {

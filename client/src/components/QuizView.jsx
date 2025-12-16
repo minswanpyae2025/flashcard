@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../AuthContext';
 import CanvasText from './CanvasText';
+import API_URL from '../config';
 
 const QuizView = ({ onBack }) => {
   const { token } = useAuth();
@@ -20,7 +21,7 @@ const QuizView = ({ onBack }) => {
 
   const startQuiz = (type = 'practice') => {
     setLoading(true);
-    axios.get(`http://localhost:3000/quiz/questions?type=${type}`, {
+    axios.get(`${API_URL}/quiz/questions?type=${type}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     .then(res => {
@@ -38,7 +39,7 @@ const QuizView = ({ onBack }) => {
   };
 
   const fetchNote = (questionId) => {
-      axios.get(`http://localhost:3000/quiz/note/${questionId}`, {
+      axios.get(`${API_URL}/quiz/note/${questionId}`, {
           headers: { Authorization: `Bearer ${token}` }
       })
       .then(res => setNoteContent(res.data.note_content))
@@ -47,7 +48,7 @@ const QuizView = ({ onBack }) => {
 
   const saveNote = () => {
       const question = questions[currentQuestionIndex];
-      axios.post('http://localhost:3000/quiz/note', {
+      axios.post(`${API_URL}/quiz/note`, {
           questionId: question.id,
           noteContent
       }, {
@@ -61,7 +62,7 @@ const QuizView = ({ onBack }) => {
 
   const submitReport = () => {
       const question = questions[currentQuestionIndex];
-      axios.post('http://localhost:3000/quiz/report', {
+      axios.post(`${API_URL}/quiz/report`, {
           questionId: question.id,
           reason: reportReason,
           details: reportDetails
@@ -86,7 +87,7 @@ const QuizView = ({ onBack }) => {
     if (selectedOption === null) return;
 
     const question = questions[currentQuestionIndex];
-    axios.post('http://localhost:3000/quiz/submit', {
+    axios.post(`${API_URL}/quiz/submit`, {
         questionId: question.id,
         selectedOption
     }, {

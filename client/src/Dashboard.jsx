@@ -6,6 +6,7 @@ import Watermark from './components/Watermark';
 import QuizCard from './components/QuizCard';
 import QuizView from './components/QuizView';
 import StatsView from './components/StatsView';
+import API_URL from './config';
 
 const Dashboard = () => {
   const { user, token } = useAuth();
@@ -27,7 +28,7 @@ const Dashboard = () => {
 
   const fetchDueCards = () => {
     setLoading(true);
-    axios.get('http://localhost:3000/reviews/due', {
+    axios.get(`${API_URL}/reviews/due`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     .then(res => {
@@ -41,7 +42,7 @@ const Dashboard = () => {
   };
 
   const handleReview = (cardId, rating) => {
-    axios.post('http://localhost:3000/reviews', { cardId, rating }, {
+    axios.post(`${API_URL}/reviews`, { cardId, rating }, {
       headers: { Authorization: `Bearer ${token}` }
     })
     .then(() => {

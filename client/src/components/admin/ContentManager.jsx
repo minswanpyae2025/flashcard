@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../AuthContext';
+import API_URL from '../../config';
 
 const ContentManager = () => {
   const { token } = useAuth();
@@ -20,8 +21,8 @@ const ContentManager = () => {
 
   const fetchItems = () => {
     const url = activeTab === 'flashcards'
-      ? 'http://localhost:3000/flashcards'
-      : 'http://localhost:3000/quiz/questions?limit=100';
+      ? `${API_URL}/flashcards`
+      : `${API_URL}/quiz/questions?limit=100`;
 
     axios.get(url, { headers: { Authorization: `Bearer ${token}` } })
       .then(res => setItems(res.data))
@@ -30,15 +31,15 @@ const ContentManager = () => {
 
   const fetchTaxonomy = () => {
       const headers = { Authorization: `Bearer ${token}` };
-      axios.get('http://localhost:3000/api/admin/categories', { headers }).then(res => setCategories(res.data));
-      axios.get('http://localhost:3000/api/admin/tags', { headers }).then(res => setTags(res.data));
+      axios.get(`${API_URL}/api/admin/categories`, { headers }).then(res => setCategories(res.data));
+      axios.get(`${API_URL}/api/admin/tags`, { headers }).then(res => setTags(res.data));
   };
 
   const handleDelete = (id) => {
     if (!confirm('Are you sure?')) return;
     const url = activeTab === 'flashcards'
-      ? `http://localhost:3000/flashcards/${id}`
-      : `http://localhost:3000/quiz/questions/${id}`;
+      ? `${API_URL}/flashcards/${id}`
+      : `${API_URL}/quiz/questions/${id}`;
 
     axios.delete(url, { headers: { Authorization: `Bearer ${token}` } })
       .then(() => fetchItems())
@@ -67,8 +68,8 @@ const ContentManager = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     const url = activeTab === 'flashcards'
-      ? 'http://localhost:3000/flashcards'
-      : 'http://localhost:3000/quiz/questions';
+      ? `${API_URL}/flashcards`
+      : `${API_URL}/quiz/questions`;
 
     const method = editingItem ? 'put' : 'post';
     const finalUrl = editingItem ? `${url}/${editingItem.id}` : url;

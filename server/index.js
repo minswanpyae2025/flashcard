@@ -14,17 +14,34 @@ const PORT = process.env.PORT || 3000;
 const SECRET_KEY = process.env.SECRET_KEY || 'your-secret-key';
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: process.env.CLIENT_URL || '*', // Allow configured client or all (for dev)
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(helmet());
 app.use(morgan('dev'));
 app.use(express.json());
 
-// Database Setup (SQLite for development)
-const sequelize = new Sequelize({
-  dialect: 'sqlite',
-  storage: './database.sqlite',
-  logging: false
-});
+// Database Setup (PostgreSQL for production, SQLite for development)
+const isProduction = process.env.NODE_ENV === 'production';
+const sequelize = process.env.DATABASE_URL
+  ? new Sequelize(process.env.DATABASE_URL, {
+      dialect: 'postgres',
+      protocol: 'postgres',
+      logging: false,
+      dialectOptions: {
+        ssl: {
+          require: true,
+          rejectUnauthorized: false
+        }
+      }
+    })
+  : new Sequelize({
+      dialect: 'sqlite',
+      storage: './database.sqlite',
+      logging: false
+    });
 
 // Models
 const User = sequelize.define('User', {
@@ -132,11 +149,10 @@ Flashcard.hasMany(Review, { foreignKey: 'card_id' });
 Review.belongsTo(Flashcard, { foreignKey: 'card_id' });
 
 // Sync Database
-// Force true to drop tables and recreate since we changed schema significantly
-sequelize.sync({ force: true }).then(async () => {
+// Use alter: true to update schema without data loss.
+// In strict production, you might disable this and use migrations.
+sequelize.sync({ alter: true }).then(async () => {
   console.log('Database synced');
-  // Re-seed admin if needed? In this sandbox, maybe yes.
-  // Actually, we'll lose data. But that's expected in dev refactoring.
 });
 
 // Routes

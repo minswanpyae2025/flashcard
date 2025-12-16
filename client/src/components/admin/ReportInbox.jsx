@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../AuthContext';
+import API_URL from '../../config';
 
 const ReportInbox = () => {
   const { token } = useAuth();
@@ -13,7 +14,7 @@ const ReportInbox = () => {
   }, []);
 
   const fetchReports = () => {
-    axios.get('http://localhost:3000/api/admin/reports?status=open', {
+    axios.get(`${API_URL}/api/admin/reports?status=open`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     .then(res => setReports(res.data))
@@ -34,8 +35,8 @@ const ReportInbox = () => {
       if (!editContent || !selectedReport) return;
 
       const url = selectedReport.targetType === 'flashcard'
-        ? `http://localhost:3000/flashcards/${selectedReport.targetId}`
-        : `http://localhost:3000/quiz/questions/${selectedReport.targetId}`;
+        ? `${API_URL}/flashcards/${selectedReport.targetId}`
+        : `${API_URL}/quiz/questions/${selectedReport.targetId}`;
 
       const headers = { Authorization: `Bearer ${token}` };
 
@@ -43,7 +44,7 @@ const ReportInbox = () => {
       axios.put(url, editContent, { headers })
         .then(() => {
             // 2. Resolve Report
-            return axios.put(`http://localhost:3000/api/admin/reports/${selectedReport.id}/resolve`, {}, { headers });
+            return axios.put(`${API_URL}/api/admin/reports/${selectedReport.id}/resolve`, {}, { headers });
         })
         .then(() => {
             alert('Content updated and report resolved.');
@@ -54,7 +55,7 @@ const ReportInbox = () => {
   };
 
   const handleResolveOnly = () => {
-      axios.put(`http://localhost:3000/api/admin/reports/${selectedReport.id}/resolve`, {}, {
+      axios.put(`${API_URL}/api/admin/reports/${selectedReport.id}/resolve`, {}, {
           headers: { Authorization: `Bearer ${token}` }
       })
       .then(() => {

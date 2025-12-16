@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../AuthContext';
+import API_URL from '../../config';
 
 const AdminHome = () => {
   const { token } = useAuth();
   const [stats, setStats] = useState(null);
 
   useEffect(() => {
-    axios.get('http://localhost:3000/api/admin/stats', {
+    axios.get(`${API_URL}/api/admin/stats`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     .then(res => setStats(res.data))
