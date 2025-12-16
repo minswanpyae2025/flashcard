@@ -16,8 +16,6 @@ const QuizView = ({ onBack }) => {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState('Typo');
   const [reportDetails, setReportDetails] = useState('');
-  const [noteContent, setNoteContent] = useState('');
-  const [noteStatus, setNoteStatus] = useState('');
 
   const startQuiz = (type = 'practice') => {
     setLoading(true);
@@ -30,34 +28,11 @@ const QuizView = ({ onBack }) => {
         setLoading(false);
         setCurrentQuestionIndex(0);
         setScore(0);
-        fetchNote(res.data[0].id);
     })
     .catch(err => {
         console.error(err);
         setLoading(false);
     });
-  };
-
-  const fetchNote = (questionId) => {
-      axios.get(`${API_URL}/quiz/note/${questionId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-      })
-      .then(res => setNoteContent(res.data.note_content))
-      .catch(err => console.error(err));
-  };
-
-  const saveNote = () => {
-      const question = questions[currentQuestionIndex];
-      axios.post(`${API_URL}/quiz/note`, {
-          questionId: question.id,
-          noteContent
-      }, {
-          headers: { Authorization: `Bearer ${token}` }
-      })
-      .then(() => setNoteStatus('Note saved!'))
-      .catch(() => setNoteStatus('Error saving note'));
-
-      setTimeout(() => setNoteStatus(''), 2000);
   };
 
   const submitReport = () => {
@@ -105,9 +80,6 @@ const QuizView = ({ onBack }) => {
     setFeedback(null);
     const nextIdx = currentQuestionIndex + 1;
     setCurrentQuestionIndex(nextIdx);
-    if (nextIdx < questions.length) {
-        fetchNote(questions[nextIdx].id);
-    }
   };
 
   const prevQuestion = () => {
@@ -116,7 +88,6 @@ const QuizView = ({ onBack }) => {
           setCurrentQuestionIndex(prevIdx);
           setSelectedOption(null);
           setFeedback(null);
-          fetchNote(questions[prevIdx].id);
       }
   };
 

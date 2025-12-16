@@ -19,18 +19,18 @@ const AdminLayout = ({ children }) => {
   return (
     <div className="min-h-screen bg-gray-100 flex">
       {/* Sidebar */}
-      <aside className="w-64 bg-indigo-800 text-white flex-shrink-0">
+      <aside className="w-64 bg-brand-gradient text-white flex-shrink-0 shadow-lg">
         <div className="p-6">
-          <Logo className="text-white" />
-          <div className="text-xs text-indigo-300 mt-2">Admin Panel</div>
+          <Logo className="text-white drop-shadow-md" />
+          <div className="text-xs text-brand-gold mt-2 font-bold uppercase tracking-wider">Admin Panel</div>
         </div>
         <nav className="mt-6">
           {menuItems.map(item => (
             <button
               key={item.path}
               onClick={() => navigate(item.path)}
-              className={`w-full text-left px-6 py-3 hover:bg-indigo-700 transition-colors ${
-                location.pathname === item.path ? 'bg-indigo-900 border-l-4 border-white' : ''
+               className={`w-full text-left px-6 py-3 hover:bg-white/10 transition-colors ${
+                 location.pathname === item.path ? 'bg-white/20 border-l-4 border-brand-gold font-bold' : ''
               }`}
             >
               {item.label}
@@ -38,13 +38,13 @@ const AdminLayout = ({ children }) => {
           ))}
           <button
               onClick={() => navigate('/dashboard')}
-              className="w-full text-left px-6 py-3 hover:bg-indigo-700 transition-colors text-gray-300 mt-4 border-t border-indigo-700"
+               className="w-full text-left px-6 py-3 hover:bg-white/10 transition-colors text-gray-100 mt-4 border-t border-white/20"
             >
               Back to App
           </button>
           <button
             onClick={logout}
-            className="w-full text-left px-6 py-3 hover:bg-red-700 transition-colors text-red-300"
+             className="w-full text-left px-6 py-3 hover:bg-red-600/80 transition-colors text-red-100"
           >
             Logout
           </button>

@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+    --brand-blue: #0070BA;
+    --brand-cyan: #2CA6E0;
+}
+
 @media print {
     body {
         display: none !important;
@@ -14,4 +19,9 @@ body {
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+}
+
+/* Brand Gradients */
+.bg-brand-gradient {
+    background: linear-gradient(135deg, var(--brand-blue) 0%, var(--brand-cyan) 100%);
 }
